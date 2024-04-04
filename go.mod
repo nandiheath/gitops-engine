@@ -1,4 +1,4 @@
-module github.com/argoproj/gitops-engine
+module github.com/nandiheath/gitops-engine
 
 go 1.17
 
