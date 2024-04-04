@@ -131,6 +131,7 @@ type ListRetryFunc func(err error) bool
 
 // NewClusterCache creates new instance of cluster cache
 func NewClusterCache(config *rest.Config, opts ...UpdateSettingsFunc) *clusterCache {
+	fmt.Printf("initializing cluster cache ..")
 	log := klogr.New()
 	cache := &clusterCache{
 		settings:           Settings{ResourceHealthOverride: &noopSettings{}, ResourcesFilter: &noopSettings{}},
@@ -941,6 +942,7 @@ func (c *clusterCache) GetManagedLiveObjs(targetObjs []*unstructured.Unstructure
 		lock.Unlock()
 
 		if managedObj == nil {
+			c.log.V(1).Info(fmt.Sprintf("resource %s/%s/%s at %s is not a managed object", key.Group, key.Kind, key.Name, key.Namespace))
 			if existingObj, exists := c.resources[key]; exists {
 				if existingObj.Resource != nil {
 					managedObj = existingObj.Resource
@@ -955,6 +957,7 @@ func (c *clusterCache) GetManagedLiveObjs(targetObjs []*unstructured.Unstructure
 					}
 				}
 			} else if _, watched := c.apisMeta[key.GroupKind()]; !watched {
+				c.log.V(1).Info(fmt.Sprintf("resource %s/%s/%s at %s is not watched. Firing a GET request for %s/%s", key.Group, key.Kind, key.Name, key.Namespace, targetObj.GroupVersionKind(), targetObj.GetName()))
 				var err error
 				managedObj, err = c.kubectl.GetResource(context.TODO(), c.config, targetObj.GroupVersionKind(), targetObj.GetName(), targetObj.GetNamespace())
 				if err != nil {
@@ -971,6 +974,7 @@ func (c *clusterCache) GetManagedLiveObjs(targetObjs []*unstructured.Unstructure
 			if err != nil {
 				// fallback to loading resource from kubernetes if conversion fails
 				c.log.V(1).Info(fmt.Sprintf("Failed to convert resource: %v", err))
+				c.log.V(1).Info(fmt.Sprintf("resource %s/%s/%s at %s cannot be converted. Firing a GET request for %s/%s", key.Group, key.Kind, key.Name, key.Namespace, targetObj.GroupVersionKind(), targetObj.GetName()))
 				managedObj, err = c.kubectl.GetResource(context.TODO(), c.config, targetObj.GroupVersionKind(), managedObj.GetName(), managedObj.GetNamespace())
 				if err != nil {
 					if errors.IsNotFound(err) {
